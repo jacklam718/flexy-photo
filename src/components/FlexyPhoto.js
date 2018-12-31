@@ -1,9 +1,9 @@
 // @flow
 
 import React, { Component, ReactElement } from 'react';
-import { View, TouchableWithoutFeedback, Animated } from 'react-native';
+import { View, TouchableWithoutFeedback, Animated, findNodeHandle } from 'react-native';
+import RCTUIManager from 'NativeModules';
 import Lightbox from './Lightbox';
-import uiMeasure from './uiMeasure';
 
 type Props = {
   style?: any;
@@ -13,72 +13,54 @@ type Props = {
     width: number;
     height: number;
   };
+  children: any;
   renderHeader?: () => ReactElement;
   renderContent?: () => ReactElement;
-  onStateChange?: (
-    state: 'IMAGE_OPENING' | 'IMAGE_OPENED' | 'IMAGE_DIMISSING' | 'IMAGE_DISMISSED'
-  ) => void;
-  children: any;
 }
 
 export default class FlexyPhoto extends Component<Props> {
   static defaultProps = {
     style: null,
-    origin: null,
+    thumbnailSizeAndPageXY: null,
     renderHeader: () => {},
     renderContent: () => {},
-    onStateChange: () => {},
   }
 
   state = {
     isOpen: false,
-    origin: null,
+    thumbnailSizeAndPageXY: null,
   }
 
   show = async () => {
-    const {
-      pageX,
-      pageY,
-      width,
-      height,
-    } = await uiMeasure(this.image);
-
-    this.setState({
-      origin: {
-        pageX,
-        pageY,
-        width,
-        height,
-      },
-    }, () => {
-      this.setState({ isOpen: true });
+    const thumbnailSizeAndPageXY = await this.getThumbnailSizeAndPageXY();
+    this.setState({ thumbnailSizeAndPageXY }, () => {
+      this.setState({ isOpen: true }, this.props.onImageDidOpen);
     });
   }
 
-  close = () => {
-    this.setState({ isOpen: false });
+  onDidClose = () => {
+    this.setState({ isOpen: false }, this.props.onImageDidClose);
   }
 
-  onClose = () => {
-    this.setState({ isOpen: false });
-  }
-
-  async getOrigin() {
-    return uiMeasure(this.image);
+  async getThumbnailSizeAndPageXY() {
+    return new Promise((resolve, reject) => {
+      const handle = findNodeHandle(this.image);
+      RCTUIManager.UIManager.measure(handle, (x, y, width, height, pageX, pageY) => {
+        resolve({ width, height, pageX, pageY });
+      });
+    })
   }
 
   render() {
     const {
       style,
       children,
+      onImageOpening,
       renderHeader,
       renderContent,
-      onStateChange,
     } = this.props;
-
     const { isOpen } = this.state;
-
-    const origin = this.props.origin || this.state.origin;
+    const thumbnailSizeAndPageXY = this.props.thumbnailSizeAndPageXY || this.state.thumbnailSizeAndPageXY;
 
     return (
       <Animated.View style={style}>
@@ -90,10 +72,10 @@ export default class FlexyPhoto extends Component<Props> {
 
         <Lightbox
           isOpen={isOpen}
-          origin={origin}
+          thumbnailSizeAndPageXY={thumbnailSizeAndPageXY}
+          onOpening={onImageOpening}
+          onDidClose={this.onDidClose}
           renderHeader={renderHeader}
-          onClose={this.onClose}
-          onStateChange={onStateChange}
           renderContent={renderContent}
         />
       </Animated.View>

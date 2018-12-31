@@ -40,6 +40,7 @@ const styles = StyleSheet.create({
   },
   leftItem: {
     flex: 1,
+    padding: 11,
     alignItems: 'flex-start',
   },
   centerItem: {
@@ -48,6 +49,7 @@ const styles = StyleSheet.create({
   },
   rightItem: {
     flex: 1,
+    padding: 11,
     alignItems: 'flex-end',
   },
   itemWrapper: {
@@ -60,19 +62,9 @@ const styles = StyleSheet.create({
   },
 });
 
-type Layout =
-    'default' // Use platform defaults (icon on Android, text on iOS)
-  | 'icon' // Always use icon
-  | 'title'; // Always use title
-
 type Foreground = 'light' | 'dark';
 
-type Item = {
-  title?: string;
-  icon?: ReactClass<any>;
-  layout?: Layout;
-  onPress?: () => void;
-};
+type Item = LeftElement | RightElement
 
 export class LeftElement extends PureComponent {
   props: {
@@ -114,17 +106,7 @@ export class LeftElement extends PureComponent {
   }
 
   componentWillReceiveProps(nextProps) {
-    // // if (this.props.iconState === nextProps.iconState) return;
     const { isActive, iconState, states } = nextProps;
-    // // this.spin.setValue(1);
-    // this.animate({ icon: states[iconState] });
-    //
-    // if (isActive === 'back') {
-    //
-    // } else if (status === 'close')(
-    //
-    // )
-
     if (this.props.isActive === isActive) return;
 
     if (isActive) {
@@ -149,25 +131,24 @@ export class LeftElement extends PureComponent {
         useNativeDriver: true,
       }),
     ])
-      .start(() => {
-        this.setState({ initialIcon: null, icon, spin: !this.state.spin });
-        Animated.parallel([
-          Animated.timing(this.spin, {
-            // toValue: this.state.spin,
-            toValue,
-            duration: 125,
-            easing: Easing.in,
-            useNativeDriver: true,
-          }),
-          Animated.timing(this.scale, {
-            toValue: 1,
-            duration: 125,
-            easing: Easing.in,
-            useNativeDriver: true,
-          }),
-        ])
-          .start();
-      });
+    .start(() => {
+      this.setState({ initialIcon: null, icon, spin: !this.state.spin });
+      Animated.parallel([
+        Animated.timing(this.spin, {
+          // toValue: this.state.spin,
+          toValue,
+          duration: 125,
+          easing: Easing.in,
+          useNativeDriver: true,
+        }),
+        Animated.timing(this.scale, {
+          toValue: 1,
+          duration: 125,
+          easing: Easing.in,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
   }
 
   render() {
@@ -247,18 +228,17 @@ export class RightElement extends PureComponent {
         useNativeDriver: true,
       }),
     ])
-      .start(() => {
-        this.setState({ icon });
-        Animated.parallel([
-          Animated.timing(this.scale, {
-            toValue: 1,
-            duration: 125,
-            easing: Easing.in,
-            useNativeDriver: true,
-          }),
-        ])
-          .start();
-      });
+    .start(() => {
+      this.setState({ icon });
+      Animated.parallel([
+        Animated.timing(this.scale, {
+          toValue: 1,
+          duration: 125,
+          easing: Easing.in,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
   }
 
   render() {
@@ -280,46 +260,6 @@ export class RightElement extends PureComponent {
           />
         </TouchableOpacity>
       </Animated.View>
-    );
-  }
-}
-
-class ItemWrapper extends PureComponent {
-  props: {
-    item: Item;
-    color: string;
-  };
-
-  render() {
-    const { item, color } = this.props;
-    if (!item) {
-      return null;
-    }
-
-    let content;
-    const {
-      title, icon, layout, onPress,
-    } = item;
-
-    if (layout !== 'icon' && title) {
-      content = (
-        <Text style={[styles.itemText, { color }]}>
-          {title.toUpperCase()}
-        </Text>
-      );
-    } else if (icon) {
-      content = icon;
-    }
-
-    return (
-      <TouchableOpacity
-        accessibilityLabel={title}
-        accessibilityTraits="button"
-        onPress={onPress}
-        style={styles.itemWrapper}
-      >
-        {content}
-      </TouchableOpacity>
     );
   }
 }
@@ -349,7 +289,10 @@ export default class Toolbar extends PureComponent {
 
   render() {
     const {
-      leftItem, title, rightItem, foreground,
+      leftItem,
+      title,
+      rightItem,
+      foreground,
     } = this.props;
     const titleColor = foreground === 'dark' ? '#032250' : 'white';
     const itemsColor = foreground === 'dark' ? '#7F91A7' : 'white';
@@ -364,7 +307,7 @@ export default class Toolbar extends PureComponent {
     return (
       <Animated.View style={StyleSheet.flatten([styles.toolbar, this.props.style])}>
         <View style={styles.leftItem}>
-          <ItemWrapper color={itemsColor} item={leftItem} />
+          {leftItem}
         </View>
         <View
           accessible
@@ -375,7 +318,7 @@ export default class Toolbar extends PureComponent {
           {content}
         </View>
         <View style={styles.rightItem}>
-          <ItemWrapper color={itemsColor} item={rightItem} />
+          {rightItem}
         </View>
       </Animated.View>
     );

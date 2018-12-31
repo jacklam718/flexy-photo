@@ -12,15 +12,9 @@ import Toolbar, { LeftElement, RightElement } from './Toolbar';
 import FlexyPhoto from './FlexyPhoto';
 import Header from './Header';
 import ParallaxCarousel from './ParallaxCarousel';
-import { images } from '../data';
-const data = images.map(uri => ({ key: uri }));
 
-const {
-  width: WINDOW_WIDTH,
-  height: WINDOW_HEIGHT,
-} = Dimensions.get('window');
+const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get('window');
 const IMAGE_HEIGHT = WINDOW_HEIGHT / 3.5;
-const MAX_HEADER_HEIGHT = WINDOW_HEIGHT / 3;
 
 const styles = StyleSheet.create({
   container: {
@@ -65,53 +59,27 @@ const styles = StyleSheet.create({
 });
 
 export default class GridContainer extends PureComponent {
-  scrollX = new Animated.Value(0)
-
   scrollY = new Animated.Value(0)
-
   titleAnimate = new Animated.Value(0)
-
   imageOpacity = new Animated.Value(1)
-
   photos = []
-
   state = {
-    origin: null,
-    isCloseing: false,
-  }
-
-  onStateChange = async ({ status }) => {
-    if (status === 'opening') {
-      const { onOpen } = this.props;
-      this.imageOpacity.setValue(0);
-      onOpen();
-    } else if (status === 'close') {
-      const { onClose } = this.props;
-      this.imageOpacity.setValue(1);
-      onClose();
-      this.setState({ origin: null });
-    } else if (status === 'open') {
-      const { selectedIndex } = this.state;
-      const origin = await this.photos[selectedIndex].getOrigin();
-      this.setState({ origin });
-    }
+    thumbnailSizeAndPageXY: null,
+    isOpen: false,
   }
 
   handleOpen = (index) => {
-
     this.setState({
       selectedIndex: index,
       leftItemState: 'close',
       rightItemState: 'more',
-      isCloseing: false,
-      isActive: true,
+      isOpen: true,
     }, () => {
-      this.scrollX.setValue(WINDOW_WIDTH * index);
+      this.photos[index].show();
       Animated.timing(this.titleAnimate, {
         toValue: 1,
         duration: 400,
       }).start();
-      this.photos[index].show();
     });
   }
 
@@ -119,8 +87,7 @@ export default class GridContainer extends PureComponent {
     this.setState({
       leftItemState: 'back',
       rightItemState: 'add',
-      isActive: false,
-      isCloseing: true,
+      isOpen: false,
     }, () => {
       close();
       Animated.timing(this.titleAnimate, {
@@ -130,80 +97,93 @@ export default class GridContainer extends PureComponent {
     });
   }
 
-  onSelectedIndexChange = async (selectedIndex) => {
-    const origin = await this.photos[selectedIndex].getOrigin();
-    this.setState({ selectedIndex, origin });
+  handleImageOpening = () => {
+    this.imageOpacity.setValue(0); // set thumbnail invisible
+    this.props.onOpen();
+  }
+
+  handleImageDidClose = () => {
+    this.imageOpacity.setValue(1); // set thumbnail visible
+    this.props.onClose();
+    this.setState({ thumbnailSizeAndPageXY: null });
+  }
+
+  handleImageDidOpen = async () => {
+    const { selectedIndex } = this.state;
+    const thumbnailSizeAndPageXY = await this.photos[selectedIndex].getThumbnailSizeAndPageXY();
+    this.setState({ thumbnailSizeAndPageXY });
+  }
+
+  handleSelectedIndexChange = async (selectedIndex) => {
+    const thumbnailSizeAndPageXY = await this.photos[selectedIndex].getThumbnailSizeAndPageXY();
+    this.setState({ selectedIndex, thumbnailSizeAndPageXY });
   }
 
   renderToolbar = ({ close }) => {
-    const { isActive, leftItemState, rightItemState } = this.state;
-    const leftItem = {
-      layout: 'icon',
-      icon: (
-        <LeftElement
-          onPress={() => { this.handleClose(close); }}
-          initialIcon="back"
-          isActive={isActive}
-          iconState={leftItemState}
-          states={{ back: 'arrow-back', close: 'close' }}
-        />
-      ),
-    };
-
-    const rightItem = {
-      layout: 'icon',
-      icon: (
-        <RightElement
-          iconState={rightItemState}
-          initialIcon="add"
-          isActive={isActive}
-          states={{
-            add: 'add',
-            more: 'more-vert',
-          }}
-        />
-      ),
-    };
+    const { isOpen, leftItemState, rightItemState } = this.state;
 
     return (
       <Toolbar
-        leftItem={leftItem}
-        rightItem={rightItem}
+        leftItem={
+          <LeftElement
+            onPress={() => { this.handleClose(close); }}
+            initialIcon="back"
+            isActive={isOpen}
+            iconState={leftItemState}
+            states={{
+              back: 'arrow-back',
+              close: 'close'
+            }}
+          />
+        }
+        rightItem={
+          <RightElement
+            iconState={rightItemState}
+            initialIcon="add"
+            isActive={isOpen}
+            states={{
+              add: 'add',
+              more: 'more-vert'
+            }}
+          />
+        }
       />
     );
   }
 
   renderCarousel = ({ openStyle }) => {
-    const { selectedIndex, isCloseing } = this.state;
+    const { images } = this.props;
+    const { selectedIndex } = this.state;
 
     return (
       <ParallaxCarousel
         images={images}
-        isCloseing={isCloseing}
         openStyle={openStyle}
         selectedIndex={selectedIndex}
-        onSelectedIndexChange={this.onSelectedIndexChange}
+        onSelectedIndexChange={this.handleSelectedIndexChange}
         speed={0.5}
       />
     );
   }
 
   renderGridItem = ({ item, index }) => {
-    const { origin, selectedIndex } = this.state;
+    const { thumbnailSizeAndPageXY, selectedIndex } = this.state;
+    const opacity = selectedIndex === index ? { opacity: this.imageOpacity } : null;
+    const padding = {
+      ...!(index % 1) ? { paddingTop: 5, paddingRight: 5 } : null,
+      ...!(index % 3) ? { paddingLeft: 5, paddingRight: 5 } : null,
+    }
     return (
       <FlexyPhoto
         key={`image-${item.key}`}
         ref={(ref) => { this.photos[index] = ref; }}
-        style={StyleSheet.flatten([
-          styles.gridItem,
-          selectedIndex === index ? { opacity: this.imageOpacity } : null,
-          !(index % 1) ? { paddingTop: 5, paddingRight: 5 } : null,
-          !(index % 3) ? { paddingLeft: 5, paddingRight: 5 } : null,
-        ])}
+        style={StyleSheet.flatten([styles.gridItem, opacity, padding])}
+        onImageOpening={this.handleImageOpening}
+        onImageDidClose={this.handleImageDidClose}
+        onImageDidOpen={this.handleImageDidOpen}
         renderHeader={this.renderToolbar}
         renderContent={this.renderCarousel}
-        onStateChange={this.onStateChange}
-        origin={origin}
+        thumbnailSizeAndPageXY={thumbnailSizeAndPageXY}
       >
         <TouchableWithoutFeedback onPress={() => this.handleOpen(index)}>
           <CustomCachedImage
@@ -218,9 +198,10 @@ export default class GridContainer extends PureComponent {
   }
 
   renderHeader() {
+    const { images } = this.props;
     const imageCount = images.length;
     const fontSize = this.scrollY.interpolate({
-      inputRange: [0, MAX_HEADER_HEIGHT / 2],
+      inputRange: [0, Header.MAX_HEADER_HEIGHT / 2],
       outputRange: [24, 18],
       extrapolate: 'clamp',
     });
@@ -247,17 +228,16 @@ export default class GridContainer extends PureComponent {
   }
 
   render() {
+    const images = this.props.images.map(uri => ({ key: uri }));
+
     return (
       <View style={styles.container}>
-        <Header
-          ref={(ref) => { this.header = ref; }}
-          offset={this.scrollY}
-        >
+        <Header offset={this.scrollY}>
           {this.renderHeader()}
         </Header>
 
         <FlatList
-          data={data}
+          data={images}
           numColumns={3}
           scrollEventThrottle={1}
           onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: this.scrollY } } }])}

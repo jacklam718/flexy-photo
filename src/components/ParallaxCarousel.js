@@ -3,16 +3,15 @@
 import React, { PureComponent } from 'react';
 import { View, Animated, StyleSheet, Dimensions } from 'react-native';
 import { CustomCachedImage } from 'react-native-img-cache';
-// import Comment from './Comment';
 
-const {
-  width: WINDOW_WIDTH,
-  height: WINDOW_HEIGHT,
-} = Dimensions.get('window');
+const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get('window');
 const IMAGE_HEIGHT = WINDOW_HEIGHT / 3.5;
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  carousel: {
     flex: 1,
     overflow: 'hidden',
   },
@@ -47,64 +46,27 @@ const styles = StyleSheet.create({
 
 export default class ParallaxCarousel extends PureComponent {
   scrollX = new Animated.Value(0)
-
   translateX = new Animated.Value(1)
-
-  // translateY = new Animated.Value(1)
-
-  // opacity = new Animated.Value(0)
-
   scrollViewHasScrolled = false
-
   width = WINDOW_WIDTH
-
   height = WINDOW_HEIGHT
 
   static defaultProps = {
     speed: 0.5,
   }
 
-  state = {
-    selectedIndex: null,
-  }
-
   componentDidMount() {
-    const { selectedIndex } = this.props;
-
-    // this.animateTo(1);
-    this.setState({ selectedIndex }, () => {
-      this.scrollToIndex(selectedIndex);
-    });
+    this.scrollToIndex(this.props.selectedIndex);
   }
-
-  // componentWillReceiveProps(nextProps) {
-  //   const { selectedIndex, isCloseing } = this.props;
-  //   if (selectedIndex !== nextProps.selectedIndex) {
-  //     this.setState({ selectedIndex: nextProps.selectedIndex });
-  //   }
-  //   if (isCloseing !== nextProps.isCloseing) {
-  //     this.animateTo(0);
-  //   }
-  // }
-  //
-  // animateTo = (toValue) => {
-  //   Animated.parallel([
-  //     Animated.timing(this.translateY, {
-  //       toValue: 0,
-  //       duration: 450,
-  //     }),
-  //     Animated.timing(this.opacity, {
-  //       toValue,
-  //       duration: 450,
-  //     }),
-  //   ]).start();
-  // }
 
   getParallaxStyles(index) {
     const { speed } = this.props;
-    const horizontalSpeed = Math.abs(this.width * speed - this.width);
+    if (speed === 1) {
+      return {};
+    }
 
-    const horizontalStyles = {
+    const horizontalSpeed = Math.abs(this.width * speed - this.width);
+    return {
       transform: [
         {
           translateX: this.scrollX.interpolate({
@@ -119,12 +81,6 @@ export default class ParallaxCarousel extends PureComponent {
         },
       ],
     };
-
-    if (speed === 1) {
-      return {};
-    }
-
-    return horizontalStyles;
   }
 
   adjustSize = (e) => {
@@ -151,12 +107,9 @@ export default class ParallaxCarousel extends PureComponent {
 
   scrollToIndex(index) {
     const scrollOffset = this.width * index;
-
-    if (!this.scrollViewHasScrolled) {
-      this.scrollX.setValue(scrollOffset);
-      this.scrollViewHasScrolled = true;
-    }
-
+    // update scrollX animate value as scrollOffset
+    this.scrollX.setValue(scrollOffset);
+    // scroll to scrollOffset
     this.scrollView._component.scrollTo({
       x: scrollOffset,
       animated: false,
@@ -164,8 +117,7 @@ export default class ParallaxCarousel extends PureComponent {
   }
 
   renderCarousel() {
-    const { images, openStyle, isCloseing, selectedIndex } = this.props;
-    const shadow = (!isCloseing) ? styles.shadow : null;
+    const { images, openStyle, selectedIndex } = this.props;
 
     return images.map((uri, index) => {
       let image = null;
@@ -179,7 +131,7 @@ export default class ParallaxCarousel extends PureComponent {
           />
         );
       } else if (
-        // 1. reduce lag on render 2. pre-render few images
+        // 1. reduce lag on render, 2. pre-render some images
         images.slice(Math.max(0, selectedIndex - 3), selectedIndex + 3).includes(images[index])
       ) {
         image = (
@@ -195,7 +147,7 @@ export default class ParallaxCarousel extends PureComponent {
       return (
         <View
           key={`carousel-${uri}`}
-          style={StyleSheet.flatten([styles.container, shadow])}
+          style={StyleSheet.flatten([styles.carousel, styles.shadow])}
         >
           <Animated.View style={this.getParallaxStyles(index)}>
             <View style={styles.content}>
@@ -209,22 +161,24 @@ export default class ParallaxCarousel extends PureComponent {
 
   render() {
     return (
-      <Animated.ScrollView
-        ref={(ref) => { this.scrollView = ref; }}
-        horizontal
-        pagingEnabled
-        scrollEventThrottle={1}
-        onLayout={this.adjustSize}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { x: this.scrollX } } }],
-          {
-            useNativeDriver: true,
-            listener: this.handleScroll,
-          },
-        )}
-      >
-        {this.renderCarousel()}
-      </Animated.ScrollView>
+      <View style={styles.container}>
+        <Animated.ScrollView
+          ref={(ref) => { this.scrollView = ref; }}
+          horizontal
+          pagingEnabled
+          scrollEventThrottle={1}
+          onLayout={this.adjustSize}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { x: this.scrollX } } }],
+            {
+              useNativeDriver: true,
+              listener: this.handleScroll,
+            },
+          )}
+        >
+          {this.renderCarousel()}
+        </Animated.ScrollView>
+      </View>
     );
   }
 }

@@ -1,8 +1,8 @@
 // @flow
 
 import React, { PureComponent } from 'react';
-import { StatusBar, View, StyleSheet } from 'react-native';
-import NavigationBar from './components/NavigationBar';
+import { StatusBar, View, StyleSheet, Animated } from 'react-native';
+import Toolbar, { LeftElement, RightElement } from './components/Toolbar';
 import GridContainer from './components/GridContainer';
 import { images } from './data';
 
@@ -13,13 +13,7 @@ const styles = StyleSheet.create({
 });
 
 export default class App extends PureComponent {
-  onImageOpen = () => {
-    this.navigationBar.hide();
-  }
-
-  onImageClose = () => {
-    this.navigationBar.show();
-  }
+  toolbarOpacity = new Animated.Value(1)
 
   render() {
     return (
@@ -29,14 +23,16 @@ export default class App extends PureComponent {
           barStyle="light-content"
         />
 
-        <NavigationBar
-          ref={(ref) => { this.navigationBar = ref; }}
+        <Toolbar
+          style={{ opacity: this.toolbarOpacity }}
+          leftItem={<LeftElement icon="arrow-back" />}
+          rightItem={<RightElement icon="add" />}
         />
 
         <GridContainer
           images={images}
-          onOpen={this.onImageOpen}
-          onClose={this.onImageClose}
+          onOpen={() => this.toolbarOpacity.setValue(0)}
+          onClose={() => this.toolbarOpacity.setValue(1)}
         />
       </View>
     );

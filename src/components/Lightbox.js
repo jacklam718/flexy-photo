@@ -15,7 +15,7 @@ const IMAGE_HEIGHT = WINDOW_HEIGHT / 3.5;
 
 type Props = {
   isOpen: boolean;
-  origin: {
+  thumbnailSizeAndPageXY: {
     width: number;
     height: number;
     pageX: number;
@@ -32,15 +32,15 @@ type Props = {
       height: Animated.Value;
     }
   }) => void;
-  onClose?: () => void;
-  onStateChange?: () => void;
+  onDidOpen: () => void;
+  onOpening: () => void;
+  onClosing: () => void;
+  onDidClose: () => void;
 }
 
 export default class Lightbox extends Component<Props> {
   size = new Animated.ValueXY()
-
   position = new Animated.ValueXY()
-
   opacity = new Animated.Value(0)
 
   componentWillReceiveProps(nextProps) {
@@ -54,21 +54,20 @@ export default class Lightbox extends Component<Props> {
   }
 
   open = async () => {
-    const { origin, onStateChange } = this.props;
+    const { thumbnailSizeAndPageXY, onOpening, onDidOpen } = this.props;
 
-    // set the size same as origin image size
+    // set the size same as thumbnailSizeAndPageXY image size
     this.size.setValue({
-      x: origin.width,
-      y: origin.height,
+      x: thumbnailSizeAndPageXY.width,
+      y: thumbnailSizeAndPageXY.height,
     });
-    // set the position same as origin image position
+    // set the position same as thumbnailSizeAndPageXY image position
     this.position.setValue({
-      x: origin.pageX,
-      y: origin.pageY,
+      x: thumbnailSizeAndPageXY.pageX,
+      y: thumbnailSizeAndPageXY.pageY,
     });
 
-    onStateChange({ status: 'opening' });
-
+    onOpening();
     Animated.parallel([
       Animated.spring(this.position.x, {
         toValue: 5,
@@ -95,34 +94,28 @@ export default class Lightbox extends Component<Props> {
         duration: 450,
         // delay: 100,
       }),
-    ]).start(() => {
-      onStateChange({ status: 'open' });
-    });
+    ]).start(onDidOpen);
   }
 
   close = () => {
-    const {
-      origin,
-      onStateChange,
-      onClose,
-    } = this.props;
+    const { thumbnailSizeAndPageXY, onOpening, onDidClose } = this.props;
 
-    onStateChange({ status: 'closing' });
+    onOpening();
     Animated.parallel([
       Animated.timing(this.position.x, {
-        toValue: origin.pageX,
+        toValue: thumbnailSizeAndPageXY.pageX,
         duration: 300,
       }),
       Animated.timing(this.position.y, {
-        toValue: origin.pageY,
+        toValue: thumbnailSizeAndPageXY.pageY,
         duration: 300,
       }),
       Animated.timing(this.size.x, {
-        toValue: origin.width,
+        toValue: thumbnailSizeAndPageXY.width,
         duration: 300,
       }),
       Animated.timing(this.size.y, {
-        toValue: origin.height,
+        toValue: thumbnailSizeAndPageXY.height,
         duration: 300,
       }),
       Animated.timing(this.opacity, {
@@ -130,10 +123,7 @@ export default class Lightbox extends Component<Props> {
         duration: 450,
         // delay: 50,
       }),
-    ]).start(() => {
-      onClose();
-      onStateChange({ status: 'close' });
-    });
+    ]).start(onDidClose);
   }
 
   render() {
@@ -151,10 +141,7 @@ export default class Lightbox extends Component<Props> {
     };
 
     return (
-      <Modal
-        visible={isOpen}
-        transparent
-      >
+      <Modal visible={isOpen} transparent>
         <Animated.View
           style={StyleSheet.flatten([
             StyleSheet.absoluteFill,
